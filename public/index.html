@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Truco Paulista - Intranet</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: radial-gradient(circle at center, #0a4d1c, #0a2e12);
+      margin: 0; padding: 8px; color: #fff;
+      display: flex; flex-direction: column; align-items: center; min-height: 100vh;
+    }
+    h1 { margin: 4px 0; text-shadow: 2px 2px 4px #000; font-size: 1.5em; }
+    #message-box {
+      background: #fff3; padding: 6px 16px; border-radius: 10px; margin: 4px 0;
+      font-weight: bold; min-height: 22px; text-align: center; max-width: 95%;
+    }
+    .menu {
+      background: rgba(0,0,0,0.65); padding: 20px; border-radius: 12px;
+      text-align: center; margin-top: 40px;
+    }
+    .menu input { padding: 8px; font-size: 1em; border-radius: 6px; border: none; margin: 5px; }
+    .menu button, .btn {
+      margin: 8px; padding: 11px 20px; font-size: 1.05em; border: none;
+      border-radius: 8px; cursor: pointer; background: #e6b422; font-weight: bold; color: #222;
+    }
+    .menu button:hover, .btn:hover { background: #f0c64a; }
+    .btn.truco { background: #d32f2f; color: #fff; font-size: 1.15em; }
+    .btn.truco:hover { background: #e53935; }
+    .btn.next { background: #2e7d32; color: #fff; }
+    .btn.next:hover { background: #388e3c; }
+
+    /* Mesa relativa: você sempre embaixo */
+    .table {
+      display: grid;
+      grid-template-columns: 130px 1fr 130px;
+      grid-template-rows: auto 1fr auto;
+      gap: 6px;
+      width: 100%; max-width: 960px; margin-top: 6px; min-height: 500px;
+    }
+    .player-area {
+      background: rgba(0,0,0,0.45); border-radius: 12px; padding: 7px;
+      text-align: center; border: 3px solid transparent;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .player-area.current-turn {
+      border-color: #ffeb3b; box-shadow: 0 0 14px rgba(255,235,59,0.55);
+    }
+    .player-area.partner { border-color: #4fc3f7; }
+    .player-area.me { border-color: #69f0ae; }
+    .player-name { font-size: 1.05em; font-weight: bold; margin-bottom: 2px; }
+    .player-pos { font-size: 0.7em; opacity: 0.75; text-transform: uppercase; letter-spacing: 0.5px; }
+    .player-team { font-size: 0.72em; opacity: 0.8; margin-bottom: 3px; }
+    .turn-badge {
+      display: inline-block; background: #ffeb3b; color: #000; font-size: 0.68em;
+      padding: 1px 6px; border-radius: 4px; margin-left: 4px; font-weight: bold;
+    }
+    .cards { display: flex; justify-content: center; flex-wrap: wrap; gap: 3px; }
+    .card {
+      width: 50px; height: 72px; border: 2px solid #fff; border-radius: 7px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.2em; font-weight: bold; background: #fef8e0; color: #222;
+      cursor: pointer; transition: transform 0.12s; user-select: none;
+    }
+    .card.red { color: #c00; }
+    .card.hidden {
+      background: #3a3a6e; color: transparent; cursor: default;
+      background-image: repeating-linear-gradient(45deg, #fff2 0px, #fff2 2px, transparent 2px, transparent 5px);
+    }
+    .card.yours:hover { transform: translateY(-10px); box-shadow: 0 8px 14px rgba(0,0,0,0.5); }
+    .card.vira-card {
+      width: 64px; height: 92px; font-size: 1.45em;
+      border: 3px solid #ffeb3b; box-shadow: 0 0 10px rgba(255,235,59,0.5); cursor: default;
+    }
+    .center-area {
+      grid-column: 2; grid-row: 2;
+      background: rgba(0,0,0,0.55); border-radius: 12px; padding: 10px;
+      text-align: center; display: flex; flex-direction: column; justify-content: center;
+    }
+    .board-cards { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; margin: 8px 0; }
+    .played-card { display: flex; flex-direction: column; align-items: center; }
+    .challenge-box { background: #00000066; padding: 10px; border-radius: 8px; margin: 6px 0; }
+    .score-board {
+      display: flex; justify-content: center; gap: 18px; margin: 6px 0; flex-wrap: wrap;
+    }
+    .score-team {
+      padding: 6px 14px; border-radius: 8px; font-weight: bold; font-size: 1.1em;
+      min-width: 120px;
+    }
+    .score-team.team0 { background: rgba(30, 136, 229, 0.35); border: 2px solid #42a5f5; }
+    .score-team.team1 { background: rgba(229, 57, 53, 0.35); border: 2px solid #ef5350; }
+    .score-team.winning { box-shadow: 0 0 10px rgba(255,235,59,0.6); }
+    .turn-info {
+      font-size: 1.1em; margin: 5px 0; padding: 5px 10px;
+      background: rgba(255,235,59,0.15); border-radius: 8px; border: 1px solid #ffeb3b55;
+    }
+    .partner-info { font-size: 0.92em; margin: 3px 0 5px; color: #4fc3f7; font-weight: bold; }
+    .vira-area { display: flex; align-items: center; justify-content: center; gap: 10px; margin: 5px 0; }
+
+    /* Posições RELATIVAS (você sempre embaixo) */
+    .pos-bottom { grid-column: 2; grid-row: 3; } /* você */
+    .pos-top    { grid-column: 2; grid-row: 1; } /* parceiro / oponente */
+    .pos-left   { grid-column: 1; grid-row: 2; }
+    .pos-right  { grid-column: 3; grid-row: 2; }
+
+    .pos-bottom.team0, .pos-top.team0 { background: rgba(30,136,229,0.28); }
+    .pos-bottom.team1, .pos-top.team1 { background: rgba(229,57,53,0.28); }
+    .pos-left.team0, .pos-right.team0 { background: rgba(30,136,229,0.28); }
+    .pos-left.team1, .pos-right.team1 { background: rgba(229,57,53,0.28); }
+  </style>
+</head>
+<body>
+  <h1>🃏 Truco Paulista</h1>
+  <div id="message-box">Conectando...</div>
+
+  <div id="config-menu" class="menu" style="display: none;">
+    <h2>Criar Sala</h2>
+    <input type="text" id="host-name" placeholder="Seu nome" maxlength="15" />
+    <div>
+      <button onclick="createRoom('1v1')">⚔️ 1 vs 1</button>
+      <button onclick="createRoom('duplas')">👥 Duplas (2v2)</button>
+    </div>
+  </div>
+
+  <div id="join-menu" class="menu" style="display: none;">
+    <h2>Entrar na Sala</h2>
+    <input type="text" id="join-name" placeholder="Seu nome" maxlength="15" />
+    <button onclick="joinRoom()">Entrar</button>
+  </div>
+
+  <div class="table" id="game-table" style="display: none;"></div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const socket = io();
+    let myPlayerIndex = -1;
+    let myTeam = -1;
+    let isHost = false;
+    let needsName = false;
+    let currentState = null;
+
+    socket.on('message', msg => {
+      document.getElementById('message-box').innerText = msg;
+    });
+
+    socket.on('requestConfig', () => {
+      document.getElementById('config-menu').style.display = 'block';
+      document.getElementById('join-menu').style.display = 'none';
+      document.getElementById('game-table').style.display = 'none';
+      document.getElementById('message-box').innerText = 'Você é o anfitrião. Configure a sala.';
+    });
+
+    socket.on('playerAssigned', (data) => {
+      myPlayerIndex = data.index;
+      isHost = !!data.isHost;
+      if (!isHost) {
+        needsName = true;
+        document.getElementById('join-menu').style.display = 'block';
+        document.getElementById('config-menu').style.display = 'none';
+        document.getElementById('game-table').style.display = 'none';
+        document.getElementById('message-box').innerText = `Você é o ${data.name}. Digite seu nome.`;
+      }
+    });
+
+    window.createRoom = function(mode) {
+      const name = document.getElementById('host-name').value.trim();
+      if (!name) { alert('Digite um nome.'); return; }
+      socket.emit('setModeAndName', { mode, name });
+      document.getElementById('config-menu').style.display = 'none';
+    };
+
+    window.joinRoom = function() {
+      const name = document.getElementById('join-name').value.trim();
+      if (!name) { alert('Digite um nome.'); return; }
+      needsName = false;
+      socket.emit('setName', name);
+      document.getElementById('join-menu').style.display = 'none';
+    };
+
+    function suitSymbol(suit) {
+      return { ouros: '♦', espadas: '♠', copas: '♥', paus: '♣' }[suit] || '?';
+    }
+    function cardToString(card) {
+      if (!card) return '—';
+      if (card.hidden) return '🂠';
+      return `${card.rank}${suitSymbol(card.suit)}`;
+    }
+    function isRedSuit(suit) {
+      return suit === 'copas' || suit === 'ouros';
+    }
+
+    /**
+     * Visão relativa: você sempre embaixo.
+     * rel = (idx - myIndex + n) % n
+     * 0 = bottom (você)
+     * 1 = right
+     * 2 = top (parceiro no 4p)
+     * 3 = left
+     */
+    function getRelativePosClass(idx, myIdx, maxPlayers) {
+      if (maxPlayers === 2) {
+        return idx === myIdx ? 'pos-bottom' : 'pos-top';
+      }
+      const rel = (idx - myIdx + 4) % 4;
+      return ['pos-bottom', 'pos-right', 'pos-top', 'pos-left'][rel];
+    }
+
+    function renderGame(state) {
+      if (!state) return;
+      if (needsName) return;
+
+      currentState = state;
+      myTeam = state.yourTeam;
+      myPlayerIndex = state.yourIndex;
+
+      document.getElementById('game-table').style.display = 'grid';
+      document.getElementById('config-menu').style.display = 'none';
+      document.getElementById('join-menu').style.display = 'none';
+
+      const table = document.getElementById('game-table');
+      table.innerHTML = '';
+
+      // ===== JOGADORES (visão relativa) =====
+      state.players.forEach((p, idx) => {
+        const div = document.createElement('div');
+        const posClass = getRelativePosClass(idx, state.yourIndex, state.maxPlayers);
+        div.className = `player-area ${posClass} team${p.team}`;
+
+        const isMe = (idx === state.yourIndex);
+        const isTurn = (idx === state.turn);
+        const isPartner = (state.maxPlayers === 4 && idx === state.partnerIndex);
+
+        if (isTurn) div.classList.add('current-turn');
+        if (isPartner) div.classList.add('partner');
+        if (isMe) div.classList.add('me');
+
+        let badges = '';
+        if (isTurn) badges += '<span class="turn-badge">VEZ</span>';
+        if (isMe) badges += ' (você)';
+        if (isPartner) badges += ' 🤝';
+
+        const posLabel = p.position ? `<div class="player-pos">${p.position}</div>` : '';
+
+        div.innerHTML = `
+          ${posLabel}
+          <div class="player-name">${p.name}${badges}</div>
+          <div class="player-team">
+            ${state.maxPlayers === 2 ? 'Individual' : 'Dupla ' + (p.team + 1)}
+            ${!p.connected ? ' ⚠' : ''}
+          </div>
+          <div class="cards" id="hand-${idx}"></div>
+        `;
+        table.appendChild(div);
+
+        const handDiv = document.getElementById(`hand-${idx}`);
+        if (isMe && state.yourHand) {
+          state.yourHand.forEach(card => {
+            const cardEl = document.createElement('div');
+            cardEl.className = `card ${isRedSuit(card.suit) ? 'red' : ''} yours`;
+            cardEl.innerText = cardToString(card);
+            cardEl.onclick = () => {
+              if (state.turn === myPlayerIndex && !state.challenge &&
+                  state.handWinnerTeam === null && !state.gameOver) {
+                socket.emit('playCard', { suit: card.suit, rank: card.rank });
+              }
+            };
+            handDiv.appendChild(cardEl);
+          });
+        } else {
+          for (let i = 0; i < (p.cardCount || 0); i++) {
+            const hidden = document.createElement('div');
+            hidden.className = 'card hidden';
+            hidden.innerText = '🂠';
+            handDiv.appendChild(hidden);
+          }
+        }
+      });
+
+      // ===== CENTRO =====
+      const centerDiv = document.createElement('div');
+      centerDiv.className = 'center-area';
+
+      const viraIsRed = state.vira && isRedSuit(state.vira.suit);
+      const viraHtml = state.vira
+        ? `<div class="card vira-card ${viraIsRed ? 'red' : ''}">${cardToString(state.vira)}</div>`
+        : '<div class="card vira-card">—</div>';
+
+      let partnerHtml = '';
+      if (state.maxPlayers === 4 && state.partnerName) {
+        partnerHtml = `<div class="partner-info">🤝 Seu parceiro: <strong>${state.partnerName}</strong></div>`;
+      }
+
+      // Placar colorido
+      const s0 = state.scores[0];
+      const s1 = state.scores[1];
+      const win0 = s0 > s1;
+      const win1 = s1 > s0;
+      let name0 = state.maxPlayers === 2 ? (state.players[0]?.name || 'J1') : (state.teamNames?.[0] || 'Norte/Sul');
+      let name1 = state.maxPlayers === 2 ? (state.players[1]?.name || 'J2') : (state.teamNames?.[1] || 'Leste/Oeste');
+
+      const scoreHtml = `
+        <div class="score-board">
+          <div class="score-team team0 ${win0 ? 'winning' : ''}">
+            ${name0}<br><span style="font-size:1.4em">${s0}</span>
+          </div>
+          <div class="score-team team1 ${win1 ? 'winning' : ''}">
+            ${name1}<br><span style="font-size:1.4em">${s1}</span>
+          </div>
+        </div>
+      `;
+
+      const turnName = state.turnPlayerName || state.players[state.turn]?.name || '?';
+      const isMyTurn = state.turn === state.yourIndex;
+
+      centerDiv.innerHTML = `
+        <div class="vira-area">
+          ${viraHtml}
+          <div>
+            <div style="font-size:0.8em; opacity:0.8;">Vira</div>
+            <div style="font-size:1.2em; margin-top:2px;">
+              Manilha: <strong style="color:#ffeb3b">${state.manilhaRank || '—'}</strong>
+            </div>
+          </div>
+        </div>
+        ${partnerHtml}
+        ${scoreHtml}
+        <div>Valor da mão: <strong>${state.currentHandValue}</strong></div>
+        <div class="turn-info">
+          ${isMyTurn ? '👉 <strong>SUA VEZ!</strong>' : `Vez de: <strong>${turnName}</strong>`}
+        </div>
+        <div class="board-cards" id="board-cards"></div>
+        <div id="challenge-area"></div>
+        <div id="action-buttons"></div>
+      `;
+      table.appendChild(centerDiv);
+
+      // Cartas na mesa
+      const boardDiv = document.getElementById('board-cards');
+      if (state.rounds && state.rounds[state.currentRound]) {
+        state.rounds[state.currentRound].cards.forEach(play => {
+          const playedDiv = document.createElement('div');
+          playedDiv.className = 'played-card';
+          const red = isRedSuit(play.card.suit);
+          playedDiv.innerHTML = `
+            <small>${state.players[play.player]?.name || '?'}</small>
+            <div class="card ${red ? 'red' : ''}">${cardToString(play.card)}</div>
+          `;
+          boardDiv.appendChild(playedDiv);
+        });
+      }
+
+      // Desafio
+      const challengeArea = document.getElementById('challenge-area');
+      challengeArea.innerHTML = '';
+      if (state.challenge) {
+        const ch = state.challenge;
+        const levelName = { 3: 'TRUCO', 6: 'SEIS', 9: 'NOVE', 12: 'DOZE' }[ch.level] || ch.level;
+
+        if (ch.waitingOn === myPlayerIndex) {
+          let raiseBtn = '';
+          if (ch.level < 12) {
+            raiseBtn = `<button class="btn" onclick="socket.emit('respondTruco','raise')">AUMENTAR</button>`;
+          }
+          challengeArea.innerHTML = `
+            <div class="challenge-box">
+              <p><strong>${state.players[ch.challenger]?.name}</strong> pediu <strong>${levelName}</strong>!</p>
+              <button class="btn" onclick="socket.emit('respondTruco','accept')">ACEITAR</button>
+              ${raiseBtn}
+              <button class="btn" onclick="socket.emit('respondTruco','flee')">CORRER</button>
+            </div>
+          `;
+        } else {
+          challengeArea.innerHTML = `<p>Aguardando resposta de <strong>${state.players[ch.waitingOn]?.name}</strong>...</p>`;
+        }
+      }
+
+      // Botões
+      const actionDiv = document.getElementById('action-buttons');
+      actionDiv.innerHTML = '';
+
+      if (state.turn === myPlayerIndex && !state.challenge && state.handWinnerTeam === null && !state.gameOver) {
+        actionDiv.innerHTML += `<button class="btn truco" onclick="socket.emit('truco')">TRUCO!</button>`;
+      }
+
+      if (state.handWinnerTeam !== null && !state.gameOver) {
+        const winnerName = state.maxPlayers === 2
+          ? state.players[state.handWinnerTeam]?.name
+          : (state.teamNames ? state.teamNames[state.handWinnerTeam] : `Dupla ${state.handWinnerTeam + 1}`);
+        document.getElementById('message-box').innerText = `Mão vencida por ${winnerName}! (+${state.currentHandValue})`;
+        actionDiv.innerHTML += `<button class="btn next" onclick="socket.emit('nextHand')">Próxima Mão →</button>`;
+      }
+
+      if (state.gameOver) {
+        const vencedor = state.maxPlayers === 2
+          ? state.players[state.winnerTeam]?.name
+          : (state.teamNames ? state.teamNames[state.winnerTeam] : `Dupla ${state.winnerTeam + 1}`);
+        document.getElementById('message-box').innerText = `🏆 ${vencedor} VENCEU A PARTIDA! 🏆`;
+        actionDiv.innerHTML += `<button class="btn" onclick="socket.emit('restart')">Nova Partida</button>`;
+      }
+    }
+
+    socket.on('gameState', state => renderGame(state));
+
+    socket.on('spectator', (state) => {
+      document.getElementById('message-box').innerText = 'Modo espectador';
+      const table = document.getElementById('game-table');
+      table.style.display = 'grid';
+      table.innerHTML = `
+        <div class="center-area" style="grid-column:1/4; grid-row:1/4;">
+          <div class="vira-area">
+            <div class="card vira-card">${cardToString(state.vira)}</div>
+            <div>Manilha: <strong>${state.manilhaRank}</strong></div>
+          </div>
+          <div class="score-board">
+            <div class="score-team team0">${state.scores[0]}</div>
+            <div class="score-team team1">${state.scores[1]}</div>
+          </div>
+          <div class="turn-info">Vez de: <strong>${state.turnPlayerName || '?'}</strong></div>
+          <p>Você está assistindo.</p>
+        </div>
+      `;
+    });
+  </script>
+</body>
+</html>
