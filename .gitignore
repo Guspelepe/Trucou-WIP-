@@ -1,0 +1,21 @@
+# Ambientes virtuais
+venv/
+env/
+.env/
+
+# Arquivos do Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Banco de dados SQLite
+*.db
+
+# Arquivos de configuração sensíveis
+instance/
+.env
+
+# Sistema operacional
+.DS_Store
+Thumbs.db
