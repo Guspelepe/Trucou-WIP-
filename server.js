@@ -21,7 +21,7 @@ const RANKS = ['4', '5', '6', '7', 'Q', 'J', 'K', 'A', '2', '3'];
 const MANILHA_SUIT_ORDER = ['ouros', 'espadas', 'copas', 'paus'];
 const HAND_VALUE_STEPS = { 1: 3, 3: 6, 6: 9, 9: 12 };
 const ROOM_CODE_LENGTH = 4;
-const ROOM_IDLE_MS = 2 * 60 * 60 * 1000; // 2h sem atividade = limpa
+const ROOM_IDLE_MS = 2 * 60 * 60 * 1000;
 
 // --- Utilitários ---
 function createDeck() {
@@ -107,7 +107,6 @@ function sortHand(hand, manilhaRank) {
 }
 
 // --- Salas ---
-/** @type {Map<string, object>} */
 const rooms = new Map();
 
 function touchRoom(room) {
@@ -156,8 +155,22 @@ function initGameState(maxPlayers) {
     winnerTeam: null,
     scores: [0, 0],
     handStarter: starterIndex,
-    started: false
+    started: false,
+    logs: [],
+    turnTimeLimit: null // em segundos
   };
+}
+
+function addLog(game, playerName, action, details = '') {
+  const entry = {
+    timestamp: new Date().toLocaleTimeString(),
+    player: playerName,
+    action: action,
+    details: details
+  };
+  game.logs.push(entry);
+  if (game.logs.length > 200) game.logs.shift();
+  return entry;
 }
 
 function endHand(room) {
@@ -175,6 +188,7 @@ function endHand(room) {
   const nextStarter = (g.handStarter - 1 + room.maxPlayers) % room.maxPlayers;
   room.game = initGameState(room.maxPlayers);
   room.game.started = true;
+  room.game.turnTimeLimit = g.turnTimeLimit;
 
   for (let i = 0; i < room.maxPlayers; i++) {
     room.game.players[i].id = oldPlayers[i].id;
@@ -187,6 +201,7 @@ function endHand(room) {
   room.game.handStarter = nextStarter;
   room.game.turnPlayerIndex = nextStarter;
   room.game.roundStarter = nextStarter;
+  room.game.logs = g.logs;
 }
 
 function getRoundHistory(game) {
@@ -265,7 +280,9 @@ function getStateForPlayer(room, playerId) {
     winnerTeam: g.winnerTeam,
     maxPlayers: room.maxPlayers,
     started: g.started,
-    yourToken: g.players[playerIndex].token
+    yourToken: g.players[playerIndex].token,
+    turnTimeLimit: g.turnTimeLimit,
+    logs: g.logs.slice(-50)
   };
 }
 
@@ -300,7 +317,9 @@ function getSpectatorState(room) {
           g.players.filter(p => p.team === 0).map(p => p.name).join(' & '),
           g.players.filter(p => p.team === 1).map(p => p.name).join(' & ')
         ]
-      : null
+      : null,
+    turnTimeLimit: g.turnTimeLimit,
+    logs: g.logs.slice(-50)
   };
 }
 
@@ -314,6 +333,7 @@ function playCard(room, playerIndex, card) {
   if (cardIndex === -1) return false;
 
   const playedCard = player.hand.splice(cardIndex, 1)[0];
+  addLog(g, player.name, 'Jogou carta', `${playedCard.rank} de ${playedCard.suit}`);
 
   if (!g.rounds[g.currentRound]) {
     g.rounds[g.currentRound] = { cards: [], winnerPlayer: null };
@@ -346,9 +366,12 @@ function playCard(room, playerIndex, card) {
     if (decidedTeam !== null) {
       g.handWinnerTeam = decidedTeam;
       g.scores[decidedTeam] += g.currentHandValue;
+      const winnerName = g.players[decidedTeam]?.name || `Time ${decidedTeam+1}`;
+      addLog(g, winnerName, 'Venceu a mão', `+${g.currentHandValue} pontos`);
       if (g.scores[decidedTeam] >= WINNING_SCORE) {
         g.gameOver = true;
         g.winnerTeam = decidedTeam;
+        addLog(g, winnerName, 'Venceu a partida!', '');
       }
       return true;
     }
@@ -376,9 +399,12 @@ function processTrucoResponse(room, playerIndex, response) {
   if (response === 'flee') {
     const challengerTeam = g.players[challenger].team;
     g.scores[challengerTeam] += previousValue;
+    const name = g.players[challenger].name;
+    addLog(g, name, 'Fugiu do truco', `perdeu ${previousValue} pontos`);
     if (g.scores[challengerTeam] >= WINNING_SCORE) {
       g.gameOver = true;
       g.winnerTeam = challengerTeam;
+      addLog(g, name, 'Venceu a partida!', '');
     }
     g.challenge = null;
     endHand(room);
@@ -387,6 +413,8 @@ function processTrucoResponse(room, playerIndex, response) {
 
   if (response === 'accept') {
     g.currentHandValue = level;
+    const name = g.players[playerIndex].name;
+    addLog(g, name, 'Aceitou o truco', `nível ${level}`);
     g.challenge = null;
     return true;
   }
@@ -400,6 +428,8 @@ function processTrucoResponse(room, playerIndex, response) {
       challenger: playerIndex,
       waitingOn: challenger
     };
+    const name = g.players[playerIndex].name;
+    addLog(g, name, 'Aumentou o truco', `nível ${newLevel}`);
     return true;
   }
   return false;
@@ -424,7 +454,6 @@ function sendStateToRoom(room) {
 }
 
 function emitRoomMessage(room, msg) {
-  room.playersSockets = room.playersSockets || new Set();
   const ids = new Set([
     ...room.game.players.filter(p => p.id).map(p => p.id),
     ...room.spectators
@@ -447,18 +476,7 @@ function findPlayerInRoom(room, socketId) {
   return room.game ? room.game.players.findIndex(p => p.id === socketId) : -1;
 }
 
-function tryStartGame(room) {
-  const g = room.game;
-  if (g.started) return;
-  const allConnected = g.players.every(p => p.connected && p.name && !p.name.startsWith('Jogador '));
-  if (allConnected) {
-    g.started = true;
-    emitRoomMessage(room, '🎮 Todos prontos! Jogo iniciado.');
-    sendStateToRoom(room);
-  }
-}
-
-// Limpeza periódica de salas ociosas
+// Limpeza periódica
 setInterval(() => {
   const now = Date.now();
   for (const [code, room] of rooms.entries()) {
@@ -532,7 +550,8 @@ io.on('connection', (socket) => {
 
     const freeSlot = room.game.players.findIndex(p => !p.connected);
     if (freeSlot === -1) {
-      // Espectador
+      socket.name = cleanName;
+      socket.isSpectator = true;
       room.spectators.add(socket.id);
       socket.join(roomCode);
       socket.emit('roomJoined', {
@@ -553,6 +572,8 @@ io.on('connection', (socket) => {
     room.game.players[freeSlot].token = token;
     room.game.players[freeSlot].name = cleanName;
     room.game.players[freeSlot].connected = true;
+    socket.name = cleanName;
+    socket.isSpectator = false;
 
     socket.join(roomCode);
     socket.emit('roomJoined', {
@@ -564,7 +585,6 @@ io.on('connection', (socket) => {
     });
     emitRoomMessage(room, `${cleanName} entrou na sala!`);
     sendStateToRoom(room);
-    tryStartGame(room);
   });
 
   socket.on('reconnectRoom', ({ code, token }) => {
@@ -582,7 +602,6 @@ io.on('connection', (socket) => {
     }
 
     const player = room.game.players[playerIndex];
-    // Desconecta socket antigo se ainda existir
     if (player.id && player.id !== socket.id) {
       const oldSock = io.sockets.sockets.get(player.id);
       if (oldSock) {
@@ -593,6 +612,8 @@ io.on('connection', (socket) => {
 
     player.id = socket.id;
     player.connected = true;
+    socket.name = player.name;
+    socket.isSpectator = false;
     room.spectators.delete(socket.id);
     socket.join(roomCode);
 
@@ -607,7 +628,6 @@ io.on('connection', (socket) => {
     socket.emit('gameState', getStateForPlayer(room, socket.id));
     emitRoomMessage(room, `${player.name} reconectou.`);
     sendStateToRoom(room);
-    tryStartGame(room);
   });
 
   socket.on('playCard', (card) => {
@@ -617,6 +637,15 @@ io.on('connection', (socket) => {
     if (playerIndex === -1) return;
     if (playCard(room, playerIndex, card)) {
       sendStateToRoom(room);
+      // Reset timer for next turn (front-end will handle)
+      const g = room.game;
+      if (g && g.turnTimeLimit) {
+        // Envia o novo tempo para o turno atual
+        const turnPlayer = g.players[g.turnPlayerIndex];
+        if (turnPlayer && turnPlayer.id) {
+          io.to(turnPlayer.id).emit('turnTimer', { timeLimit: g.turnTimeLimit });
+        }
+      }
     } else {
       socket.emit('toast', 'Jogada inválida.');
     }
@@ -656,7 +685,12 @@ io.on('connection', (socket) => {
       waitingOn: opponentIndex
     };
     const levelName = { 3: 'TRUCO', 6: 'SEIS', 9: 'NOVE', 12: 'DOZE' }[nextLevel] || nextLevel;
-    emitRoomMessage(room, `🗣️ ${g.players[playerIndex].name} pediu ${levelName}!`);
+    const playerName = g.players[playerIndex].name;
+    addLog(g, playerName, 'Pediu truco', levelName);
+    emitRoomMessage(room, `🗣️ ${playerName} pediu ${levelName}!`);
+    
+    // Efeito truco com nível correto
+    io.to(room.code).emit('trucoEffect', { level: nextLevel, player: playerName });
     sendStateToRoom(room);
   });
 
@@ -669,6 +703,11 @@ io.on('connection', (socket) => {
       const labels = { accept: 'aceitou', flee: 'fugiu', raise: 'aumentou' };
       const name = room.game.players[playerIndex]?.name || '?';
       if (labels[response]) emitRoomMessage(room, `${name} ${labels[response]} o truco.`);
+      if (response === 'accept' || response === 'raise') {
+        const g = room.game;
+        const levelName = { 3: 'TRUCO', 6: 'SEIS', 9: 'NOVE', 12: 'DOZE' }[g.currentHandValue] || g.currentHandValue;
+        io.to(room.code).emit('trucoEffect', { level: g.currentHandValue, player: name });
+      }
       sendStateToRoom(room);
     } else {
       socket.emit('toast', 'Resposta inválida.');
@@ -683,6 +722,13 @@ io.on('connection', (socket) => {
     endHand(room);
     emitRoomMessage(room, 'Nova mão!');
     sendStateToRoom(room);
+    // Iniciar timer para o novo turno
+    if (g.turnTimeLimit) {
+      const turnPlayer = g.players[g.turnPlayerIndex];
+      if (turnPlayer && turnPlayer.id) {
+        io.to(turnPlayer.id).emit('turnTimer', { timeLimit: g.turnTimeLimit });
+      }
+    }
   });
 
   socket.on('restart', () => {
@@ -698,15 +744,96 @@ io.on('connection', (socket) => {
       connected: p.connected
     }));
 
+    const oldLogs = g.logs;
     room.game = initGameState(room.maxPlayers);
     room.game.started = true;
+    room.game.logs = oldLogs;
+    room.game.turnTimeLimit = g.turnTimeLimit;
     for (let i = 0; i < room.maxPlayers; i++) {
       room.game.players[i].id = oldPlayers[i].id;
       room.game.players[i].token = oldPlayers[i].token;
       room.game.players[i].name = oldPlayers[i].name;
       room.game.players[i].connected = oldPlayers[i].connected;
     }
+    addLog(room.game, 'Sistema', 'Nova partida iniciada', '');
     emitRoomMessage(room, '🔄 Nova partida iniciada!');
+    sendStateToRoom(room);
+    if (room.game.turnTimeLimit) {
+      const turnPlayer = room.game.players[room.game.turnPlayerIndex];
+      if (turnPlayer && turnPlayer.id) {
+        io.to(turnPlayer.id).emit('turnTimer', { timeLimit: room.game.turnTimeLimit });
+      }
+    }
+  });
+
+  socket.on('startGame', ({ timeLimit }) => {
+    const room = findRoomBySocket(socket.id);
+    if (!room) return;
+    const g = room.game;
+    if (!g) return;
+    
+    if (room.hostId !== socket.id) {
+      socket.emit('toast', 'Apenas o criador da sala pode iniciar a partida.');
+      return;
+    }
+
+    const allConnected = g.players.every(p => p.connected && p.name && !p.name.startsWith('Jogador '));
+    if (!allConnected) {
+      socket.emit('toast', 'Aguardando todos os jogadores se conectarem.');
+      return;
+    }
+
+    if (g.started) {
+      socket.emit('toast', 'A partida já foi iniciada.');
+      return;
+    }
+
+    g.turnTimeLimit = timeLimit || null;
+    g.started = true;
+    addLog(g, 'Sistema', 'Partida iniciada', timeLimit ? `${timeLimit}s por turno` : 'sem limite de tempo');
+    emitRoomMessage(room, `🎮 Partida iniciada! ${timeLimit ? `Tempo por turno: ${timeLimit}s` : 'Sem limite de tempo'}`);
+    
+    io.to(room.code).emit('gameStarted', { timeLimit: g.turnTimeLimit });
+    sendStateToRoom(room);
+    
+    // Iniciar timer para o primeiro turno
+    if (g.turnTimeLimit) {
+      const turnPlayer = g.players[g.turnPlayerIndex];
+      if (turnPlayer && turnPlayer.id) {
+        io.to(turnPlayer.id).emit('turnTimer', { timeLimit: g.turnTimeLimit });
+      }
+    }
+  });
+
+  // Timeout do turno (enviado pelo front-end)
+  socket.on('turnTimeout', () => {
+    const room = findRoomBySocket(socket.id);
+    if (!room) return;
+    const playerIndex = findPlayerInRoom(room, socket.id);
+    if (playerIndex === -1) return;
+    const g = room.game;
+    if (!g || g.gameOver || g.handWinnerTeam !== null || g.challenge) return;
+    if (playerIndex !== g.turnPlayerIndex) return;
+
+    // Perde a mão (fugir)
+    const player = g.players[playerIndex];
+    addLog(g, player.name, 'Tempo esgotado', 'perdeu a mão');
+    emitRoomMessage(room, `⏰ ${player.name} perdeu a mão por tempo!`);
+    
+    // Dar a mão para o adversário
+    const opponentTeam = g.players.find((p, idx) => idx !== playerIndex && p.team !== player.team);
+    if (opponentTeam) {
+      g.handWinnerTeam = opponentTeam.team;
+      g.scores[opponentTeam.team] += g.currentHandValue;
+      if (g.scores[opponentTeam.team] >= WINNING_SCORE) {
+        g.gameOver = true;
+        g.winnerTeam = opponentTeam.team;
+        addLog(g, opponentTeam.name, 'Venceu a partida por tempo!', '');
+      }
+    }
+    g.challenge = null;
+    sendStateToRoom(room);
+    endHand(room);
     sendStateToRoom(room);
   });
 
@@ -716,6 +843,31 @@ io.on('connection', (socket) => {
 
   socket.on('disconnect', () => {
     handleDisconnect(socket, false);
+  });
+
+  // --- Chat ---
+  socket.on('chatMessage', (data) => {
+    const { message } = data;
+    if (!message || message.trim() === '') return;
+
+    const room = findRoomBySocket(socket.id);
+    if (!room) return;
+
+    let name = socket.name || 'Anônimo';
+    let isSpectator = socket.isSpectator || false;
+
+    const playerIndex = findPlayerInRoom(room, socket.id);
+    if (playerIndex !== -1) {
+      name = room.game.players[playerIndex].name;
+    } else {
+      if (!name || name === 'Anônimo') name = 'Espectador';
+    }
+
+    io.to(room.code).emit('chatMessage', {
+      name: name,
+      message: message.trim(),
+      isSpectator: isSpectator
+    });
   });
 
   function handleDisconnect(socket, voluntary) {
