@@ -3,529 +3,31 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Truco na Escola</title>
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800&display=swap');
-
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-
-    body {
-      font-family: 'Nunito', system-ui, sans-serif;
-      background: radial-gradient(ellipse at center, #2e7d32 0%, #1b5e20 55%, #0d3b12 100%);
-      color: #f5f5f5;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 10px;
-      overflow-x: hidden;
-    }
-
-    h1 {
-      margin: 6px 0 4px;
-      font-size: 1.75rem;
-      font-weight: 800;
-      color: #ffeb3b;
-      text-shadow: 2px 3px 0 rgba(0,0,0,0.35);
-    }
-
-    .room-badge {
-      background: rgba(0,0,0,0.45);
-      padding: 4px 14px;
-      border-radius: 20px;
-      font-size: 0.9rem;
-      font-weight: 700;
-      letter-spacing: 1px;
-      margin-bottom: 6px;
-      border: 1px solid rgba(255,255,255,0.15);
-    }
-
-    .room-badge span { color: #ffeb3b; }
-
-    /* TOASTS */
-    #toasts {
-      position: fixed;
-      top: 12px;
-      left: 50%;
-      transform: translateX(-50%);
-      z-index: 9999;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      width: min(92vw, 360px);
-      pointer-events: none;
-    }
-
-    .toast {
-      background: rgba(0,0,0,0.85);
-      color: #fff;
-      padding: 12px 18px;
-      border-radius: 14px;
-      font-weight: 700;
-      font-size: 0.95rem;
-      text-align: center;
-      box-shadow: 0 6px 20px rgba(0,0,0,0.4);
-      border: 1px solid rgba(255,255,255,0.12);
-      animation: toastIn 0.25s ease, toastOut 0.3s ease 2.7s forwards;
-    }
-
-    @keyframes toastIn {
-      from { opacity: 0; transform: translateY(-12px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
-    @keyframes toastOut {
-      to { opacity: 0; transform: translateY(-8px); }
-    }
-
-    /* MENUS */
-    .menu {
-      background: rgba(255,255,255,0.12);
-      backdrop-filter: blur(14px);
-      padding: 26px 28px;
-      border-radius: 22px;
-      text-align: center;
-      margin-top: 28px;
-      box-shadow: 0 12px 40px rgba(0,0,0,0.4);
-      border: 2px solid rgba(255,255,255,0.18);
-      max-width: 380px;
-      width: 100%;
-    }
-
-    .menu h2 {
-      margin-bottom: 16px;
-      color: #ffeb3b;
-      font-size: 1.4rem;
-    }
-
-    .menu input {
-      width: 100%;
-      padding: 12px 14px;
-      font-size: 1.1rem;
-      border-radius: 12px;
-      border: 3px solid #66bb6a;
-      outline: none;
-      font-family: inherit;
-      text-align: center;
-      background: #fffde7;
-      color: #222;
-      margin-bottom: 12px;
-      font-weight: 600;
-    }
-
-    .menu input:focus {
-      border-color: #ffeb3b;
-      box-shadow: 0 0 0 3px rgba(255,235,59,0.25);
-    }
-
-    .menu input.code-input {
-      letter-spacing: 4px;
-      text-transform: uppercase;
-      font-size: 1.3rem;
-      font-weight: 800;
-    }
-
-    .menu-buttons {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-
-    .menu button, .btn {
-      padding: 12px 20px;
-      font-size: 1rem;
-      border: none;
-      border-radius: 50px;
-      cursor: pointer;
-      background: #ffc107;
-      font-weight: 800;
-      color: #3e2723;
-      box-shadow: 0 5px 0 #ef6c00;
-      transition: all 0.12s ease;
-      font-family: inherit;
-      text-transform: uppercase;
-      letter-spacing: 0.3px;
-    }
-
-    .menu button:active, .btn:active:not(:disabled) {
-      transform: translateY(5px);
-      box-shadow: 0 0 0 #ef6c00;
-    }
-
-    .btn:disabled {
-      opacity: 0.45;
-      cursor: not-allowed;
-      box-shadow: 0 3px 0 #999;
-      transform: none;
-    }
-
-    .btn.truco {
-      background: #ef5350;
-      color: #fff;
-      font-size: 1.1rem;
-      box-shadow: 0 5px 0 #c62828;
-    }
-    .btn.truco:active:not(:disabled) { box-shadow: 0 0 0 #c62828; }
-
-    .btn.next {
-      background: #66bb6a;
-      color: #fff;
-      box-shadow: 0 5px 0 #2e7d32;
-    }
-    .btn.next:active:not(:disabled) { box-shadow: 0 0 0 #2e7d32; }
-
-    .btn.ghost {
-      background: transparent;
-      color: #fff;
-      box-shadow: none;
-      border: 2px solid rgba(255,255,255,0.35);
-      margin-top: 8px;
-    }
-    .btn.ghost:active { transform: none; background: rgba(255,255,255,0.1); }
-
-    .link-like {
-      margin-top: 14px;
-      font-size: 0.9rem;
-      opacity: 0.85;
-      cursor: pointer;
-      text-decoration: underline;
-    }
-
-    /* WAITING */
-    .waiting-box {
-      background: rgba(0,0,0,0.35);
-      border-radius: 16px;
-      padding: 16px;
-      margin-top: 12px;
-      text-align: left;
-    }
-    .waiting-box li {
-      list-style: none;
-      padding: 6px 0;
-      font-weight: 700;
-    }
-    .waiting-box .ok { color: #69f0ae; }
-    .waiting-box .wait { color: #ffcc80; }
-
-    /* MESA */
-    .table {
-      display: grid;
-      grid-template-columns: 130px 1fr 130px;
-      grid-template-rows: auto 1fr auto;
-      gap: 10px;
-      width: 100%;
-      max-width: 980px;
-      margin-top: 4px;
-      min-height: 500px;
-    }
-
-    .player-area {
-      background: rgba(0,0,0,0.28);
-      border-radius: 16px;
-      padding: 8px 6px;
-      text-align: center;
-      border: 3px solid transparent;
-      transition: all 0.25s ease;
-    }
-
-    @keyframes pulse-turn {
-      0%, 100% {
-        box-shadow: 0 0 8px rgba(255,235,59,0.35);
-        border-color: rgba(255,235,59,0.5);
-      }
-      50% {
-        box-shadow: 0 0 22px rgba(255,235,59,0.9);
-        border-color: #ffeb3b;
-        transform: scale(1.02);
-      }
-    }
-
-    .player-area.current-turn {
-      animation: pulse-turn 1.5s infinite;
-      background: rgba(255,235,59,0.12);
-    }
-
-    .player-area.team0 { border-color: #42a5f5; }
-    .player-area.team1 { border-color: #ef5350; }
-    .player-area.me { background: rgba(105,240,174,0.1); }
-    .player-area.partner { box-shadow: inset 0 0 0 2px #4fc3f7; }
-
-    .player-name {
-      font-size: 1.05rem;
-      font-weight: 800;
-      margin-bottom: 2px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 5px;
-      flex-wrap: wrap;
-    }
-
-    .player-team {
-      font-size: 0.75rem;
-      opacity: 0.9;
-      margin-bottom: 6px;
-      font-weight: 700;
-    }
-
-    .team-badge {
-      display: inline-block;
-      padding: 1px 7px;
-      border-radius: 8px;
-      font-size: 0.7rem;
-      font-weight: 800;
-    }
-    .team-badge.t0 { background: #1976d2; color: #fff; }
-    .team-badge.t1 { background: #c62828; color: #fff; }
-
-    .turn-badge {
-      display: inline-block;
-      background: #ffeb3b;
-      color: #111;
-      font-size: 0.68rem;
-      padding: 2px 6px;
-      border-radius: 7px;
-      font-weight: 800;
-    }
-
-    .cards {
-      display: flex;
-      justify-content: center;
-      flex-wrap: wrap;
-      gap: 5px;
-    }
-
-    .card {
-      width: 50px;
-      height: 74px;
-      border: 2.5px solid #e0e0e0;
-      border-radius: 9px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      font-size: 1.2rem;
-      font-weight: 800;
-      background: #fffde7;
-      color: #212121;
-      cursor: pointer;
-      transition: transform 0.18s ease, box-shadow 0.18s ease;
-      user-select: none;
-      box-shadow: 2px 3px 8px rgba(0,0,0,0.35);
-      line-height: 1.15;
-    }
-
-    .card.red { color: #c62828; }
-
-    .card.hidden {
-      background: #1565c0;
-      color: transparent;
-      cursor: default;
-      border-color: #0d47a1;
-      background-image:
-        radial-gradient(rgba(255,255,255,0.18) 15%, transparent 16%),
-        radial-gradient(rgba(255,255,255,0.18) 15%, transparent 16%);
-      background-size: 14px 14px;
-      background-position: 0 0, 7px 7px;
-    }
-
-    .card.yours:hover {
-      transform: translateY(-12px) scale(1.08);
-      box-shadow: 0 10px 18px rgba(0,0,0,0.5);
-      border-color: #66bb6a;
-      z-index: 5;
-    }
-
-    .card.yours.disabled {
-      opacity: 0.55;
-      cursor: not-allowed;
-      transform: none !important;
-    }
-
-    .card.vira-card {
-      width: 60px;
-      height: 88px;
-      font-size: 1.35rem;
-      border: 3.5px solid #ffeb3b;
-      box-shadow: 0 0 14px rgba(255,235,59,0.7);
-      cursor: default;
-    }
-
-    .center-area {
-      grid-column: 2;
-      grid-row: 2;
-      background: rgba(0,0,0,0.38);
-      border-radius: 20px;
-      padding: 12px 10px;
-      text-align: center;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      gap: 7px;
-      box-shadow: inset 0 0 24px rgba(0,0,0,0.4);
-    }
-
-    .board-cards {
-      display: flex;
-      justify-content: center;
-      gap: 10px;
-      flex-wrap: wrap;
-      margin: 4px 0;
-      min-height: 85px;
-    }
-
-    @keyframes dropCard {
-      from { transform: translateY(-20px) scale(1.12); opacity: 0; }
-      to   { transform: translateY(0) scale(1); opacity: 1; }
-    }
-
-    .played-card {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      animation: dropCard 0.28s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    }
-
-    .played-card small {
-      background: rgba(0,0,0,0.55);
-      padding: 2px 7px;
-      border-radius: 7px;
-      margin-bottom: 3px;
-      font-weight: 700;
-      font-size: 0.72rem;
-    }
-
-    .challenge-box {
-      background: rgba(198,40,40,0.88);
-      padding: 12px;
-      border-radius: 14px;
-      margin: 4px 0;
-      border: 2.5px solid #ff5252;
-      box-shadow: 0 6px 16px rgba(0,0,0,0.35);
-    }
-
-    .score-board {
-      display: flex;
-      justify-content: center;
-      gap: 12px;
-      flex-wrap: wrap;
-    }
-
-    .score-team {
-      padding: 7px 14px;
-      border-radius: 12px;
-      font-weight: 800;
-      font-size: 1rem;
-      min-width: 110px;
-      box-shadow: 0 3px 8px rgba(0,0,0,0.3);
-    }
-
-    .score-team.team0 {
-      background: rgba(33,150,243,0.8);
-      border: 2.5px solid #64b5f6;
-    }
-    .score-team.team1 {
-      background: rgba(239,83,80,0.8);
-      border: 2.5px solid #ef9a9a;
-    }
-    .score-team.winning {
-      box-shadow: 0 0 16px rgba(255,235,59,0.75);
-      border-color: #ffeb3b;
-    }
-
-    .turn-info {
-      font-size: 1.1rem;
-      padding: 8px 12px;
-      background: rgba(255,235,59,0.15);
-      border-radius: 11px;
-      border: 1.5px dashed #ffeb3b;
-    }
-
-    .turn-info.my-turn {
-      background: rgba(105,240,174,0.25);
-      border-color: #69f0ae;
-      border-style: solid;
-      animation: pulse-turn 1.5s infinite;
-    }
-
-    .partner-info {
-      font-size: 0.9rem;
-      color: #81d4fa;
-      font-weight: 700;
-    }
-
-    .vira-area {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 12px;
-    }
-
-    .manilha-highlight {
-      background: #ff9800;
-      color: #fff;
-      padding: 2px 7px;
-      border-radius: 6px;
-      font-size: 1rem;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.35);
-    }
-
-    .round-history {
-      display: flex;
-      justify-content: center;
-      gap: 6px;
-      flex-wrap: wrap;
-      font-size: 0.78rem;
-      font-weight: 700;
-    }
-    .round-chip {
-      background: rgba(0,0,0,0.4);
-      padding: 3px 8px;
-      border-radius: 8px;
-    }
-    .round-chip.win0 { border-left: 3px solid #42a5f5; }
-    .round-chip.win1 { border-left: 3px solid #ef5350; }
-    .round-chip.tie  { border-left: 3px solid #bbb; }
-
-    .pos-bottom { grid-column: 2; grid-row: 3; }
-    .pos-top    { grid-column: 2; grid-row: 1; }
-    .pos-left   { grid-column: 1; grid-row: 2; }
-    .pos-right  { grid-column: 3; grid-row: 2; }
-
-    #waiting-screen, #game-table { display: none; width: 100%; max-width: 980px; }
-
-    @media (max-width: 768px) {
-      .table {
-        grid-template-columns: 78px 1fr 78px;
-        gap: 6px;
-        min-height: 440px;
-      }
-      .card { width: 40px; height: 60px; font-size: 1.05rem; }
-      .card.vira-card { width: 50px; height: 74px; font-size: 1.2rem; }
-      h1 { font-size: 1.45rem; }
-      .score-team { min-width: 90px; font-size: 0.9rem; padding: 6px 10px; }
-      .player-name { font-size: 0.9rem; }
-      .menu { padding: 20px 18px; }
-    }
-
-    @media (max-width: 480px) {
-      .table { grid-template-columns: 68px 1fr 68px; }
-      .card { width: 36px; height: 54px; font-size: 0.95rem; }
-    }
-  </style>
+  <title>Trucou!</title>
+  <link rel="stylesheet" href="/style.css">
 </head>
 <body>
   <div id="toasts"></div>
 
-  <h1>🎒 Truco na Escola 🃏</h1>
+  <div id="logo-container">
+    <img src="/src/logo.png" alt="Trucou!" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+    <h1 style="display:none; color:#ffeb3b; font-size:2rem;">TRUCOU!</h1>
+  </div>
+
   <div id="room-badge" class="room-badge" style="display:none;">Sala: <span id="room-code-label"></span></div>
+
+  <!-- OVERLAY DE TRUCO (efeito UNO) -->
+  <div id="truco-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:9998; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,0.3); animation:fadeIn 0.3s;">
+    <div id="truco-text" style="font-size:8rem; font-weight:900; color:#ffeb3b; text-shadow:0 0 40px #ff9800, 0 0 80px #ff5722; transform:scale(0); animation:pop 0.5s forwards; font-family:'Nunito',sans-serif;"></div>
+  </div>
 
   <!-- MENU PRINCIPAL -->
   <div id="main-menu" class="menu">
     <h2>Bem-vindo!</h2>
     <input type="text" id="player-name" placeholder="Seu nome" maxlength="18" autocomplete="off" />
     <div class="menu-buttons">
-      <button onclick="showCreate()">🎮 Criar Sala</button>
-      <button onclick="showJoin()">🚪 Entrar com Código</button>
+      <button onclick="showCreate()">Criar Sala</button>
+      <button onclick="showJoin()">Entrar com Código</button>
     </div>
   </div>
 
@@ -534,9 +36,9 @@
     <h2>Criar Sala</h2>
     <p style="margin-bottom:12px; opacity:0.9;">Escolha o modo:</p>
     <div class="menu-buttons">
-      <button onclick="createRoom('1v1')">⚔️ 1 vs 1</button>
-      <button onclick="createRoom('duplas')">👥 Duplas (2v2)</button>
-      <button class="btn ghost" onclick="backToMain()">← Voltar</button>
+      <button onclick="createRoom('1v1')">1 vs 1</button>
+      <button onclick="createRoom('duplas')">Duplas (2v2)</button>
+      <button class="btn ghost" onclick="backToMain()">Voltar</button>
     </div>
   </div>
 
@@ -545,8 +47,8 @@
     <h2>Entrar na Sala</h2>
     <input type="text" id="join-code" class="code-input" placeholder="CÓDIGO" maxlength="6" autocomplete="off" />
     <div class="menu-buttons">
-      <button onclick="joinRoom()">Entrar 🚀</button>
-      <button class="btn ghost" onclick="backToMain()">← Voltar</button>
+      <button onclick="joinRoom()">Entrar</button>
+      <button class="btn ghost" onclick="backToMain()">Voltar</button>
     </div>
   </div>
 
@@ -556,444 +58,61 @@
     <p>Código da sala: <strong id="wait-code" style="color:#ffeb3b; font-size:1.4rem; letter-spacing:2px;"></strong></p>
     <p style="margin:8px 0; opacity:0.85; font-size:0.9rem;">Compartilhe o código com os colegas</p>
     <ul class="waiting-box" id="waiting-list"></ul>
+    
+    <!-- Controles do host -->
+    <div id="host-controls" style="display:none; margin-top:15px; padding:12px; background:rgba(0,0,0,0.3); border-radius:12px;">
+      <p style="font-weight:bold; margin-bottom:8px;">⚙️ Controles do criador</p>
+      <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:center;">
+        <label style="display:flex; align-items:center; gap:4px; font-size:0.9rem;">
+          <input type="radio" name="timeLimit" value="30"> 30s
+        </label>
+        <label style="display:flex; align-items:center; gap:4px; font-size:0.9rem;">
+          <input type="radio" name="timeLimit" value="60" checked> 1min
+        </label>
+        <label style="display:flex; align-items:center; gap:4px; font-size:0.9rem;">
+          <input type="radio" name="timeLimit" value="180"> 3min
+        </label>
+        <label style="display:flex; align-items:center; gap:4px; font-size:0.9rem;">
+          <input type="radio" name="timeLimit" value="0"> Sem limite
+        </label>
+      </div>
+      <button id="start-game-btn" class="btn" style="margin-top:10px; background:#4caf50; box-shadow:0 5px 0 #2e7d32;">▶️ Iniciar Partida</button>
+    </div>
+
     <button class="btn ghost" onclick="leaveRoom()" style="margin-top:14px;">Sair da sala</button>
   </div>
 
   <!-- MESA -->
   <div class="table" id="game-table"></div>
 
+  <!-- CHAT FLUTUANTE -->
+  <div id="chat-container" style="display:none; position:fixed; bottom:20px; right:20px; width:280px; max-height:350px; background:rgba(0,0,0,0.85); border-radius:12px; border:1px solid #444; box-shadow:0 8px 20px rgba(0,0,0,0.6); display:flex; flex-direction:column; z-index:1000; backdrop-filter:blur(6px);">
+    <div style="padding:8px 12px; background:#1a1a1a; border-radius:12px 12px 0 0; font-weight:bold; color:#ffeb3b; border-bottom:1px solid #333; display:flex; justify-content:space-between; align-items:center;">
+      <span>Chat</span>
+      <span id="chat-toggle" style="cursor:pointer; font-size:1.2rem; user-select:none;">−</span>
+    </div>
+    <div id="chat-messages" style="flex:1; padding:8px; overflow-y:auto; max-height:220px; font-size:0.9rem; line-height:1.4; color:#eee; display:flex; flex-direction:column; gap:2px; min-height:100px;">
+      <!-- Mensagens aparecerão aqui -->
+    </div>
+    <div style="display:flex; padding:6px; border-top:1px solid #333; gap:6px;">
+      <input type="text" id="chat-input" placeholder="Digite..." style="flex:1; padding:6px 10px; border-radius:20px; border:none; background:#2a2a2a; color:#fff; font-size:0.9rem; outline:none;" maxlength="80">
+      <button id="chat-send" style="background:#ffeb3b; border:none; border-radius:50%; width:32px; height:32px; font-size:1.2rem; cursor:pointer; display:flex; align-items:center; justify-content:center; color:#222;">➤</button>
+    </div>
+  </div>
+
+  <!-- BOTÃO LOGS -->
+  <button id="logs-toggle" style="display:none; position:fixed; bottom:20px; left:20px; background:rgba(0,0,0,0.7); color:#fff; border:none; border-radius:50%; width:44px; height:44px; font-size:1.4rem; cursor:pointer; z-index:900; box-shadow:0 4px 12px rgba(0,0,0,0.4);">📜</button>
+
+  <!-- PAINEL DE LOGS -->
+  <div id="logs-panel" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); width:90%; max-width:500px; max-height:70vh; background:rgba(20,20,20,0.95); border-radius:16px; padding:16px; z-index:9999; border:1px solid #555; box-shadow:0 8px 30px rgba(0,0,0,0.8); overflow-y:auto;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+      <h3 style="color:#ffeb3b; margin:0;">📜 Histórico da Partida</h3>
+      <button id="logs-close" style="background:transparent; border:none; color:#fff; font-size:1.6rem; cursor:pointer;">&times;</button>
+    </div>
+    <div id="logs-content" style="color:#ddd; font-size:0.9rem; line-height:1.5; max-height:55vh; overflow-y:auto;"></div>
+  </div>
+
   <script src="/socket.io/socket.io.js"></script>
-  <script>
-    const socket = io({ transports: ['websocket', 'polling'] });
-
-    let myIndex = -1;
-    let myToken = null;
-    let roomCode = null;
-    let isSpectator = false;
-    let currentState = null;
-
-    const STORAGE_KEY = 'truco_escola_session';
-
-    function saveSession(data) {
-      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch (e) {}
-    }
-    function loadSession() {
-      try {
-        const raw = localStorage.getItem(STORAGE_KEY);
-        return raw ? JSON.parse(raw) : null;
-      } catch (e) { return null; }
-    }
-    function clearSession() {
-      try { localStorage.removeItem(STORAGE_KEY); } catch (e) {}
-    }
-
-    function toast(msg) {
-      const box = document.getElementById('toasts');
-      const el = document.createElement('div');
-      el.className = 'toast';
-      el.textContent = msg;
-      box.appendChild(el);
-      setTimeout(() => el.remove(), 3200);
-    }
-
-    function hideAllMenus() {
-      ['main-menu', 'create-menu', 'join-menu', 'waiting-screen'].forEach(id => {
-        document.getElementById(id).style.display = 'none';
-      });
-      document.getElementById('game-table').style.display = 'none';
-    }
-
-    function backToMain() {
-      hideAllMenus();
-      document.getElementById('main-menu').style.display = 'block';
-      document.getElementById('room-badge').style.display = 'none';
-    }
-
-    function showCreate() {
-      const name = document.getElementById('player-name').value.trim();
-      if (!name) { toast('Digite seu nome primeiro!'); return; }
-      hideAllMenus();
-      document.getElementById('create-menu').style.display = 'block';
-    }
-
-    function showJoin() {
-      const name = document.getElementById('player-name').value.trim();
-      if (!name) { toast('Digite seu nome primeiro!'); return; }
-      hideAllMenus();
-      document.getElementById('join-menu').style.display = 'block';
-    }
-
-    function createRoom(mode) {
-      const name = document.getElementById('player-name').value.trim();
-      if (!name) { toast('Digite seu nome!'); return; }
-      socket.emit('createRoom', { mode, name });
-    }
-
-    function joinRoom() {
-      const name = document.getElementById('player-name').value.trim();
-      const code = document.getElementById('join-code').value.trim();
-      if (!name) { toast('Digite seu nome!'); return; }
-      if (!code) { toast('Digite o código da sala!'); return; }
-      socket.emit('joinRoom', { code, name });
-    }
-
-    function leaveRoom() {
-      socket.emit('leaveRoom');
-      clearSession();
-      myIndex = -1;
-      myToken = null;
-      roomCode = null;
-      isSpectator = false;
-      currentState = null;
-      backToMain();
-      toast('Você saiu da sala.');
-    }
-
-    // Tentar reconectar ao carregar
-    socket.on('connect', () => {
-      const session = loadSession();
-      if (session?.code && session?.token) {
-        socket.emit('reconnectRoom', { code: session.code, token: session.token });
-      }
-    });
-
-    socket.on('reconnectFailed', () => {
-      clearSession();
-      toast('Não foi possível reconectar. Entre novamente.');
-      backToMain();
-    });
-
-    socket.on('toast', msg => toast(msg));
-
-    socket.on('roomJoined', (data) => {
-      roomCode = data.roomCode;
-      myToken = data.token;
-      myIndex = data.index;
-      isSpectator = !!data.spectator;
-
-      if (myToken) {
-        saveSession({ code: roomCode, token: myToken, name: document.getElementById('player-name').value.trim() });
-      }
-
-      document.getElementById('room-badge').style.display = 'block';
-      document.getElementById('room-code-label').textContent = roomCode;
-
-      hideAllMenus();
-
-      if (isSpectator) {
-        // espectador espera spectator event
-        return;
-      }
-
-      if (data.reconnected) {
-        toast('Reconectado com sucesso!');
-      }
-    });
-
-    function suitSymbol(suit) {
-      return { ouros: '♦️', espadas: '♠️', copas: '♥️', paus: '♣️' }[suit] || '?';
-    }
-    function isRedSuit(suit) {
-      return suit === 'copas' || suit === 'ouros';
-    }
-
-    function getRelativePosClass(idx, myIdx, maxPlayers) {
-      if (maxPlayers === 2) return idx === myIdx ? 'pos-bottom' : 'pos-top';
-      const rel = (idx - myIdx + 4) % 4;
-      return ['pos-bottom', 'pos-right', 'pos-top', 'pos-left'][rel];
-    }
-
-    function canPlay(state) {
-      return state.started &&
-        state.turn === state.yourIndex &&
-        !state.challenge &&
-        state.handWinnerTeam === null &&
-        !state.gameOver;
-    }
-
-    function renderWaiting(state) {
-      hideAllMenus();
-      const wait = document.getElementById('waiting-screen');
-      wait.style.display = 'block';
-      document.getElementById('wait-code').textContent = state.roomCode || roomCode;
-
-      const list = document.getElementById('waiting-list');
-      list.innerHTML = state.players.map((p, i) => {
-        const ready = p.connected && p.name && !p.name.startsWith('Jogador ');
-        return `<li class="${ready ? 'ok' : 'wait'}">${ready ? '✅' : '⏳'} ${p.name}${p.connected ? '' : ' (offline)'}</li>`;
-      }).join('');
-    }
-
-    function renderGame(state) {
-      if (!state) return;
-      currentState = state;
-      myIndex = state.yourIndex;
-
-      if (!state.started) {
-        renderWaiting(state);
-        return;
-      }
-
-      hideAllMenus();
-      const table = document.getElementById('game-table');
-      table.style.display = 'grid';
-      table.innerHTML = '';
-
-      document.getElementById('room-badge').style.display = 'block';
-      document.getElementById('room-code-label').textContent = state.roomCode || roomCode;
-
-      const playable = canPlay(state);
-
-      // Jogadores
-      state.players.forEach((p, idx) => {
-        const div = document.createElement('div');
-        const posClass = getRelativePosClass(idx, state.yourIndex, state.maxPlayers);
-        div.className = `player-area ${posClass} team${p.team}`;
-
-        const isMe = idx === state.yourIndex;
-        const isTurn = idx === state.turn;
-        const isPartner = state.maxPlayers === 4 && idx === state.partnerIndex;
-
-        if (isTurn) div.classList.add('current-turn');
-        if (isMe) div.classList.add('me');
-        if (isPartner) div.classList.add('partner');
-
-        let badges = '';
-        if (isTurn) badges += '<span class="turn-badge">⭐ VEZ</span>';
-        if (isMe) badges += ' 🧑‍🎓';
-        if (isPartner) badges += ' 🤝';
-
-        const teamLabel = state.maxPlayers === 2
-          ? 'Individual'
-          : `<span class="team-badge t${p.team}">Time ${p.team + 1}</span>`;
-
-        div.innerHTML = `
-          <div class="player-name">${p.name}${badges}</div>
-          <div class="player-team">${teamLabel}${!p.connected ? ' 💤' : ''}</div>
-          <div class="cards" id="hand-${idx}"></div>
-        `;
-        table.appendChild(div);
-
-        const handDiv = document.getElementById(`hand-${idx}`);
-        if (isMe && state.yourHand) {
-          state.yourHand.forEach(card => {
-            const cardEl = document.createElement('div');
-            cardEl.className = `card ${isRedSuit(card.suit) ? 'red' : ''} yours${playable ? '' : ' disabled'}`;
-            cardEl.innerHTML = `<div>${card.rank}</div><div>${suitSymbol(card.suit)}</div>`;
-            if (playable) {
-              cardEl.onclick = () => socket.emit('playCard', { suit: card.suit, rank: card.rank });
-            }
-            handDiv.appendChild(cardEl);
-          });
-        } else {
-          for (let i = 0; i < (p.cardCount || 0); i++) {
-            const hidden = document.createElement('div');
-            hidden.className = 'card hidden';
-            handDiv.appendChild(hidden);
-          }
-        }
-      });
-
-      // Centro
-      const centerDiv = document.createElement('div');
-      centerDiv.className = 'center-area';
-
-      const viraIsRed = state.vira && isRedSuit(state.vira.suit);
-      const viraHtml = state.vira
-        ? `<div class="card vira-card ${viraIsRed ? 'red' : ''}"><div>${state.vira.rank}</div><div>${suitSymbol(state.vira.suit)}</div></div>`
-        : '<div class="card vira-card">?</div>';
-
-      let partnerHtml = '';
-      if (state.maxPlayers === 4 && state.partnerName) {
-        partnerHtml = `<div class="partner-info">Parceiro: <strong>${state.partnerName}</strong></div>`;
-      }
-
-      const s0 = state.scores[0];
-      const s1 = state.scores[1];
-      let name0 = state.maxPlayers === 2 ? (state.players[0]?.name || 'J1') : (state.teamNames?.[0] || 'Time 1');
-      let name1 = state.maxPlayers === 2 ? (state.players[1]?.name || 'J2') : (state.teamNames?.[1] || 'Time 2');
-
-      const scoreHtml = `
-        <div class="score-board">
-          <div class="score-team team0 ${s0 > s1 ? 'winning' : ''}">${name0}<br><span style="font-size:1.4em">🏆 ${s0}</span></div>
-          <div class="score-team team1 ${s1 > s0 ? 'winning' : ''}">${name1}<br><span style="font-size:1.4em">🏆 ${s1}</span></div>
-        </div>
-      `;
-
-      let historyHtml = '';
-      if (state.roundHistory && state.roundHistory.length) {
-        historyHtml = `<div class="round-history">${state.roundHistory.map(r => {
-          const cls = r.team === 0 ? 'win0' : r.team === 1 ? 'win1' : 'tie';
-          return `<span class="round-chip ${cls}">R${r.round}: ${r.winnerLabel}</span>`;
-        }).join('')}</div>`;
-      }
-
-      const isMyTurn = state.turn === state.yourIndex;
-      const turnName = state.turnPlayerName || '?';
-
-      centerDiv.innerHTML = `
-        <div class="vira-area">
-          ${viraHtml}
-          <div style="text-align:left;">
-            <div style="font-size:0.8em; opacity:0.85; text-transform:uppercase;">Carta Vira</div>
-            <div style="font-size:1.05em; margin-top:2px;">Manilha:<br><strong class="manilha-highlight">${state.manilhaRank || '?'}</strong></div>
-          </div>
-        </div>
-        ${partnerHtml}
-        ${scoreHtml}
-        ${historyHtml}
-        <div style="font-size:0.95rem; background:rgba(0,0,0,0.45); padding:5px 10px; border-radius:9px; display:inline-block; margin:0 auto;">
-          Pontos da rodada: <strong style="color:#ffeb3b;">${state.currentHandValue}</strong>
-        </div>
-        <div class="turn-info ${isMyTurn && !state.challenge && !state.handWinnerTeam && !state.gameOver ? 'my-turn' : ''}">
-          ${isMyTurn && !state.challenge && !state.handWinnerTeam && !state.gameOver
-            ? '👉 <strong>É A SUA VEZ DE JOGAR!</strong>'
-            : `Vez de: <strong>${turnName}</strong>`}
-        </div>
-        <div class="board-cards" id="board-cards"></div>
-        <div id="challenge-area"></div>
-        <div id="action-buttons"></div>
-      `;
-      table.appendChild(centerDiv);
-
-      // Cartas na mesa
-      const boardDiv = document.getElementById('board-cards');
-      if (state.rounds && state.rounds[state.currentRound]) {
-        state.rounds[state.currentRound].cards.forEach(play => {
-          const playedDiv = document.createElement('div');
-          playedDiv.className = 'played-card';
-          const red = isRedSuit(play.card.suit);
-          playedDiv.innerHTML = `
-            <small>${state.players[play.player]?.name || '?'}</small>
-            <div class="card ${red ? 'red' : ''}"><div>${play.card.rank}</div><div>${suitSymbol(play.card.suit)}</div></div>
-          `;
-          boardDiv.appendChild(playedDiv);
-        });
-      }
-
-      // Truco
-      const challengeArea = document.getElementById('challenge-area');
-      if (state.challenge) {
-        const ch = state.challenge;
-        const levelName = { 3: 'TRUCO', 6: 'SEIS', 9: 'NOVE', 12: 'DOZE' }[ch.level] || ch.level;
-        if (ch.waitingOn === state.yourIndex) {
-          let raiseBtn = '';
-          if (ch.level < 12) {
-            raiseBtn = `<button class="btn" onclick="socket.emit('respondTruco','raise')">AUMENTAR ⬆️</button>`;
-          }
-          challengeArea.innerHTML = `
-            <div class="challenge-box">
-              <p style="margin-bottom:8px; font-size:1.05em;">💥 <strong>${state.players[ch.challenger]?.name}</strong> pediu <strong>${levelName}</strong>!</p>
-              <button class="btn" onclick="socket.emit('respondTruco','accept')">ACEITAR 👍</button>
-              ${raiseBtn}
-              <button class="btn" style="background:#fff;color:#c62828;" onclick="socket.emit('respondTruco','flee')">FUGIR 🏃</button>
-            </div>
-          `;
-        } else {
-          challengeArea.innerHTML = `<p style="color:#ffeb3b; font-weight:700;">⏳ Aguardando <strong>${state.players[ch.waitingOn]?.name}</strong>...</p>`;
-        }
-      }
-
-      // Ações
-      const actionDiv = document.getElementById('action-buttons');
-      if (playable) {
-        const nextLevel = { 1: 3, 3: 6, 6: 9, 9: 12 }[state.currentHandValue];
-        if (nextLevel) {
-          actionDiv.innerHTML = `<button class="btn truco" onclick="socket.emit('truco')">🗣️ PEDIR TRUCO!</button>`;
-        } else {
-          actionDiv.innerHTML = `<button class="btn truco" disabled title="Máximo atingido">Truco (máx.)</button>`;
-        }
-      }
-
-      if (state.handWinnerTeam !== null && !state.gameOver) {
-        const winnerName = state.maxPlayers === 2
-          ? state.players[state.handWinnerTeam]?.name
-          : (state.teamNames?.[state.handWinnerTeam] || `Time ${state.handWinnerTeam + 1}`);
-        toast(`🎉 ${winnerName} venceu a mão! (+${state.currentHandValue})`);
-        actionDiv.innerHTML = `<button class="btn next" onclick="socket.emit('nextHand')">Próxima Mão ➡️</button>`;
-      }
-
-      if (state.gameOver) {
-        const vencedor = state.maxPlayers === 2
-          ? state.players[state.winnerTeam]?.name
-          : (state.teamNames?.[state.winnerTeam] || `Time ${state.winnerTeam + 1}`);
-        toast(`🌟 ${vencedor} VENCEU O JOGO!`);
-        actionDiv.innerHTML = `<button class="btn" onclick="socket.emit('restart')">🔄 Jogar Novamente</button>`;
-      }
-    }
-
-    function renderSpectator(state) {
-      hideAllMenus();
-      const table = document.getElementById('game-table');
-      table.style.display = 'grid';
-      document.getElementById('room-badge').style.display = 'block';
-      document.getElementById('room-code-label').textContent = state.roomCode || roomCode;
-
-      const viraIsRed = state.vira && isRedSuit(state.vira.suit);
-      const viraHtml = state.vira
-        ? `<div class="card vira-card ${viraIsRed ? 'red' : ''}"><div>${state.vira.rank}</div><div>${suitSymbol(state.vira.suit)}</div></div>`
-        : '';
-
-      let boardHtml = '';
-      if (state.rounds && state.rounds[state.currentRound]) {
-        boardHtml = state.rounds[state.currentRound].cards.map(play => {
-          const red = isRedSuit(play.card.suit);
-          return `<div class="played-card">
-            <small>${state.players[play.player]?.name || '?'}</small>
-            <div class="card ${red ? 'red' : ''}"><div>${play.card.rank}</div><div>${suitSymbol(play.card.suit)}</div></div>
-          </div>`;
-        }).join('');
-      }
-
-      let historyHtml = '';
-      if (state.roundHistory?.length) {
-        historyHtml = `<div class="round-history">${state.roundHistory.map(r => {
-          const cls = r.team === 0 ? 'win0' : r.team === 1 ? 'win1' : 'tie';
-          return `<span class="round-chip ${cls}">R${r.round}: ${r.winnerLabel}</span>`;
-        }).join('')}</div>`;
-      }
-
-      let challengeHtml = '';
-      if (state.challenge) {
-        const levelName = { 3: 'TRUCO', 6: 'SEIS', 9: 'NOVE', 12: 'DOZE' }[state.challenge.level] || state.challenge.level;
-        challengeHtml = `<p style="color:#ffeb3b; font-weight:700;">🗣️ Truco em andamento: ${levelName}</p>`;
-      }
-
-      const s0 = state.scores[0];
-      const s1 = state.scores[1];
-      const name0 = state.maxPlayers === 2 ? (state.players[0]?.name || 'J1') : (state.teamNames?.[0] || 'Time 1');
-      const name1 = state.maxPlayers === 2 ? (state.players[1]?.name || 'J2') : (state.teamNames?.[1] || 'Time 2');
-
-      table.innerHTML = `
-        <div class="center-area" style="grid-column:1/4; grid-row:1/4;">
-          <h2 style="color:#ffeb3b; margin-bottom:8px;">👀 Modo Espectador</h2>
-          <div class="vira-area">
-            ${viraHtml}
-            <div>Manilha: <strong class="manilha-highlight">${state.manilhaRank || '?'}</strong></div>
-          </div>
-          <div class="score-board" style="margin:8px 0;">
-            <div class="score-team team0">${name0}<br>🏆 ${s0}</div>
-            <div class="score-team team1">${name1}<br>🏆 ${s1}</div>
-          </div>
-          ${historyHtml}
-          <div class="turn-info">Vez de: <strong>${state.turnPlayerName || '?'}</strong> · Rodada vale <strong style="color:#ffeb3b;">${state.currentHandValue}</strong></div>
-          ${challengeHtml}
-          <div class="board-cards">${boardHtml || '<span style="opacity:0.6;">Aguardando cartas...</span>'}</div>
-          <p style="margin-top:8px; opacity:0.8; font-size:0.9rem;">Assista e aprenda as estratégias!</p>
-        </div>
-      `;
-    }
-
-    socket.on('gameState', state => renderGame(state));
-    socket.on('spectator', state => renderSpectator(state));
-
-    // Enter no código
-    document.getElementById('join-code')?.addEventListener('keydown', e => {
-      if (e.key === 'Enter') joinRoom();
-    });
-    document.getElementById('player-name')?.addEventListener('keydown', e => {
-      if (e.key === 'Enter') showCreate();
-    });
-  </script>
+  <script src="/script.js"></script>
 </body>
 </html>
