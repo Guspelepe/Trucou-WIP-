@@ -204,6 +204,44 @@ function endHand(room) {
   room.game.logs = g.logs;
 }
 
+// Nova função: encerrar a partida e voltar ao lobby
+function abortGame(room) {
+  const g = room.game;
+  if (!g) return;
+  
+  // Se a partida já foi encerrada, não fazer nada
+  if (!g.started) return;
+  
+  // Marcar como não iniciada e resetar o estado
+  g.started = false;
+  g.gameOver = false;
+  g.currentHandValue = 1;
+  g.scores = [0, 0];
+  g.rounds = [];
+  g.roundResults = [];
+  g.currentRound = 0;
+  g.logs = [];
+  g.challenge = null;
+  g.handWinnerTeam = null;
+  
+  // Reembaralhar e redistribuir cartas para todos
+  const deck = createDeck();
+  for (const p of g.players) {
+    p.hand = [deck.pop(), deck.pop(), deck.pop()];
+  }
+  g.vira = deck.pop();
+  g.manilhaRank = RANKS[(RANKS.indexOf(g.vira.rank) + 1) % RANKS.length];
+  const starterIndex = Math.floor(Math.random() * room.maxPlayers);
+  g.turnPlayerIndex = starterIndex;
+  g.roundStarter = starterIndex;
+  g.handStarter = starterIndex;
+  
+  addLog(g, 'Sistema', 'Partida interrompida por saída de jogador', 'Voltando ao lobby');
+  
+  emitRoomMessage(room, '🔄 Jogador saiu. Partida interrompida. Aguardando novos jogadores.');
+  sendStateToRoom(room);
+}
+
 function getRoundHistory(game) {
   if (!game.rounds || game.rounds.length === 0) return [];
   return game.rounds.map((round, idx) => {
@@ -637,10 +675,8 @@ io.on('connection', (socket) => {
     if (playerIndex === -1) return;
     if (playCard(room, playerIndex, card)) {
       sendStateToRoom(room);
-      // Reset timer for next turn (front-end will handle)
       const g = room.game;
-      if (g && g.turnTimeLimit) {
-        // Envia o novo tempo para o turno atual
+      if (g && g.turnTimeLimit && g.started && !g.gameOver) {
         const turnPlayer = g.players[g.turnPlayerIndex];
         if (turnPlayer && turnPlayer.id) {
           io.to(turnPlayer.id).emit('turnTimer', { timeLimit: g.turnTimeLimit });
@@ -689,7 +725,7 @@ io.on('connection', (socket) => {
     addLog(g, playerName, 'Pediu truco', levelName);
     emitRoomMessage(room, `🗣️ ${playerName} pediu ${levelName}!`);
     
-    // Efeito truco com nível correto
+    // Envia o efeito com o nível CORRETO (o cliente decide o nome)
     io.to(room.code).emit('trucoEffect', { level: nextLevel, player: playerName });
     sendStateToRoom(room);
   });
@@ -705,7 +741,7 @@ io.on('connection', (socket) => {
       if (labels[response]) emitRoomMessage(room, `${name} ${labels[response]} o truco.`);
       if (response === 'accept' || response === 'raise') {
         const g = room.game;
-        const levelName = { 3: 'TRUCO', 6: 'SEIS', 9: 'NOVE', 12: 'DOZE' }[g.currentHandValue] || g.currentHandValue;
+        // Envia o nível atual (já atualizado)
         io.to(room.code).emit('trucoEffect', { level: g.currentHandValue, player: name });
       }
       sendStateToRoom(room);
@@ -722,8 +758,7 @@ io.on('connection', (socket) => {
     endHand(room);
     emitRoomMessage(room, 'Nova mão!');
     sendStateToRoom(room);
-    // Iniciar timer para o novo turno
-    if (g.turnTimeLimit) {
+    if (g.turnTimeLimit && g.started && !g.gameOver) {
       const turnPlayer = g.players[g.turnPlayerIndex];
       if (turnPlayer && turnPlayer.id) {
         io.to(turnPlayer.id).emit('turnTimer', { timeLimit: g.turnTimeLimit });
@@ -758,7 +793,7 @@ io.on('connection', (socket) => {
     addLog(room.game, 'Sistema', 'Nova partida iniciada', '');
     emitRoomMessage(room, '🔄 Nova partida iniciada!');
     sendStateToRoom(room);
-    if (room.game.turnTimeLimit) {
+    if (room.game.turnTimeLimit && room.game.started) {
       const turnPlayer = room.game.players[room.game.turnPlayerIndex];
       if (turnPlayer && turnPlayer.id) {
         io.to(turnPlayer.id).emit('turnTimer', { timeLimit: room.game.turnTimeLimit });
@@ -796,8 +831,7 @@ io.on('connection', (socket) => {
     io.to(room.code).emit('gameStarted', { timeLimit: g.turnTimeLimit });
     sendStateToRoom(room);
     
-    // Iniciar timer para o primeiro turno
-    if (g.turnTimeLimit) {
+    if (g.turnTimeLimit && g.started) {
       const turnPlayer = g.players[g.turnPlayerIndex];
       if (turnPlayer && turnPlayer.id) {
         io.to(turnPlayer.id).emit('turnTimer', { timeLimit: g.turnTimeLimit });
@@ -805,7 +839,6 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Timeout do turno (enviado pelo front-end)
   socket.on('turnTimeout', () => {
     const room = findRoomBySocket(socket.id);
     if (!room) return;
@@ -815,12 +848,10 @@ io.on('connection', (socket) => {
     if (!g || g.gameOver || g.handWinnerTeam !== null || g.challenge) return;
     if (playerIndex !== g.turnPlayerIndex) return;
 
-    // Perde a mão (fugir)
     const player = g.players[playerIndex];
     addLog(g, player.name, 'Tempo esgotado', 'perdeu a mão');
     emitRoomMessage(room, `⏰ ${player.name} perdeu a mão por tempo!`);
     
-    // Dar a mão para o adversário
     const opponentTeam = g.players.find((p, idx) => idx !== playerIndex && p.team !== player.team);
     if (opponentTeam) {
       g.handWinnerTeam = opponentTeam.team;
@@ -890,7 +921,22 @@ io.on('connection', (socket) => {
         } else {
           emitRoomMessage(room, `${player.name} desconectou. Pode reconectar.`);
         }
-        sendStateToRoom(room);
+        
+        // Verificar se a partida estava em andamento e agora tem menos de 2 jogadores conectados
+        const g = room.game;
+        if (g && g.started) {
+          const connectedCount = g.players.filter(p => p.connected).length;
+          // Se menos de 2 jogadores conectados, abortar a partida
+          if (connectedCount < 2) {
+            abortGame(room);
+            // Não encerrar a sala, apenas voltar ao lobby
+            sendStateToRoom(room);
+          } else {
+            sendStateToRoom(room);
+          }
+        } else {
+          sendStateToRoom(room);
+        }
 
         const anyone = room.game.players.some(p => p.connected);
         if (!anyone && room.spectators.size === 0) {

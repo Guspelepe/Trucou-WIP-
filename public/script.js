@@ -108,6 +108,7 @@ function backToMain() {
   hideAllMenus();
   document.getElementById('main-menu').style.display = 'block';
   document.getElementById('room-badge').style.display = 'none';
+  document.getElementById('leave-room-btn').style.display = 'none';
   chatContainer.style.display = 'none';
   chatMessages.innerHTML = '';
   logsToggle.style.display = 'none';
@@ -208,7 +209,6 @@ function startTurnTimer(seconds) {
       clearInterval(turnTimerInterval);
       turnTimerEl.textContent = '⏱️ 0s';
       turnTimerEl.classList.add('warning');
-      // Notificar servidor que o tempo acabou
       socket.emit('turnTimeout');
       toast('⏰ Tempo esgotado!');
       setTimeout(() => {
@@ -258,6 +258,7 @@ socket.on('roomJoined', (data) => {
 
   document.getElementById('room-badge').style.display = 'block';
   document.getElementById('room-code-label').textContent = roomCode;
+  document.getElementById('leave-room-btn').style.display = 'block';
 
   chatContainer.style.display = 'flex';
   chatMessages.innerHTML = '';
@@ -287,7 +288,6 @@ socket.on('roomJoined', (data) => {
 });
 
 socket.on('gameStarted', (data) => {
-  // O timer de turno será iniciado pelo evento turnTimer
   toast('🎮 Partida iniciada!');
 });
 
@@ -300,9 +300,16 @@ socket.on('turnTimer', (data) => {
   }
 });
 
-// Efeito Truco
+// Efeito Truco CORRIGIDO
 socket.on('trucoEffect', (data) => {
-  const levelName = { 3: 'TRUCO', 6: 'SEIS', 9: 'NOVE', 12: 'DOZE' }[data.level] || data.level;
+  const levelNames = {
+    1: 'TRUCO',  // fallback
+    3: 'TRUCO',
+    6: 'SEIS',
+    9: 'NOVE',
+    12: 'DOZE'
+  };
+  const levelName = levelNames[data.level] || `Nível ${data.level}`;
   trucoText.innerHTML = `${levelName}!<small>${data.player}</small>`;
   trucoOverlay.style.display = 'flex';
   trucoText.style.animation = 'none';
@@ -321,11 +328,9 @@ socket.on('gameState', (state) => {
   if (logsPanel.style.display === 'block' && state.logs) {
     renderLogs(state.logs);
   }
-  // Se houver timer no estado e for a vez do jogador, inicia
   if (state.started && state.turn === state.yourIndex && state.turnTimeLimit && !state.gameOver && !state.challenge) {
     startTurnTimer(state.turnTimeLimit);
-  } else if (state.turn !== state.yourIndex) {
-    // Se não for a vez, para o timer
+  } else if (state.turn !== state.yourIndex || state.challenge || state.gameOver) {
     if (turnTimerInterval) clearInterval(turnTimerInterval);
     turnTimerEl.style.display = 'none';
   }
@@ -337,7 +342,6 @@ socket.on('spectator', (state) => {
   if (logsPanel.style.display === 'block' && state.logs) {
     renderLogs(state.logs);
   }
-  // Espectador não tem timer
   if (turnTimerInterval) clearInterval(turnTimerInterval);
   turnTimerEl.style.display = 'none';
 });
@@ -368,7 +372,7 @@ function canPlay(state) {
     !state.gameOver;
 }
 
-// Renderizações
+// Renderizações (renderWaiting, renderGame, renderSpectator)
 function renderWaiting(state) {
   hideAllMenus();
   const wait = document.getElementById('waiting-screen');
@@ -402,7 +406,6 @@ function renderGame(state) {
 
   const playable = canPlay(state);
 
-  // Jogadores
   state.players.forEach((p, idx) => {
     const div = document.createElement('div');
     const posClass = getRelativePosClass(idx, state.yourIndex, state.maxPlayers);
@@ -452,7 +455,6 @@ function renderGame(state) {
     }
   });
 
-  // Centro
   const centerDiv = document.createElement('div');
   centerDiv.className = 'center-area';
 
@@ -514,7 +516,6 @@ function renderGame(state) {
   `;
   table.appendChild(centerDiv);
 
-  // Cartas na mesa
   const boardDiv = document.getElementById('board-cards');
   if (state.rounds && state.rounds[state.currentRound]) {
     state.rounds[state.currentRound].cards.forEach(play => {
@@ -529,7 +530,6 @@ function renderGame(state) {
     });
   }
 
-  // Truco
   const challengeArea = document.getElementById('challenge-area');
   if (state.challenge) {
     const ch = state.challenge;
@@ -552,7 +552,6 @@ function renderGame(state) {
     }
   }
 
-  // Ações
   const actionDiv = document.getElementById('action-buttons');
   if (playable) {
     const nextLevel = { 1: 3, 3: 6, 6: 9, 9: 12 }[state.currentHandValue];
